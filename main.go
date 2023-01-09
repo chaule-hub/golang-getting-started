@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,18 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/rohinivsenthil/golang-getting-started/schema"
+	"github.com/rohinivsenthil/golang-getting-started/utils"
 )
-
-type ToDo struct {
-	Id   string `json:"id"`
-	Text string `json:"text"`
-}
-
-type ToDoList []ToDo
-
-type ToDoDO struct {
-	Text string `json:"text"`
-}
 
 func getAllTodos(w http.ResponseWriter, r *http.Request) {
 	log.Info("Received get requests")
@@ -43,7 +34,7 @@ func createNewTodo(w http.ResponseWriter, r *http.Request) {
 	log.Info("Received post requests")
 
 	// read POST request body
-	var data ToDoDO
+	var data schema.ToDoDO
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&data)
 	if err != nil {
@@ -60,7 +51,7 @@ func createNewTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse existing string data to json
-	var todos ToDoList
+	var todos schema.ToDoList
 	if err = json.Unmarshal(existing_data, &todos); err != nil {
 		log.WithError(err).Error("Failed to parse existing data")
 		fmt.Fprintf(w, "Failed to parse existing data: %s", err.Error())
@@ -68,8 +59,8 @@ func createNewTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// add new data
-	todos = append(todos, ToDo{Id: uuid.NewString(), Text: data.Text})
-	if err := saveToDos(todos); err != nil {
+	todos = append(todos, schema.ToDo{Id: uuid.NewString(), Text: data.Text})
+	if err := utils.SaveToDos(todos); err != nil {
 		fmt.Fprintf(w, "Failed to save data: %s", err.Error())
 		return
 	}
@@ -85,7 +76,7 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 	updateId := vars["todoId"]
 
 	// read PUT request body
-	var data ToDoDO
+	var data schema.ToDoDO
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&data)
 	if err != nil {
@@ -102,7 +93,7 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse existing string data to json
-	var todos ToDoList
+	var todos schema.ToDoList
 	if err = json.Unmarshal(existing_data, &todos); err != nil {
 		log.WithError(err).Error("Failed to parse existing data")
 		fmt.Fprintf(w, "Failed to parse existing data: %s", err.Error())
@@ -124,34 +115,13 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// write to file
-	if err := saveToDos(todos); err != nil {
+	if err := utils.SaveToDos(todos); err != nil {
 		fmt.Fprintf(w, "Failed to save data: %s", err.Error())
 		return
 	}
 
 	// set response
 	w.Write([]byte("Successfully updated data"))
-}
-
-func saveToDos(todos ToDoList) (returnError error) {
-	output, err := json.Marshal(todos)
-	if err != nil {
-		log.WithError(err).WithField("todos", todos).Error("Failed to convert todos to json")
-		errorMsg := fmt.Sprintf("Failed to convert to json: %s", err.Error())
-		returnError := errors.New(errorMsg)
-
-		return returnError
-	}
-
-	if err = ioutil.WriteFile("data.json", output, 0666); err != nil {
-		log.WithError(err).WithField("data", output).Error("Failed to write data to data.json")
-		errorMsg := fmt.Sprintf("Failed to write to data.json: %s", err.Error())
-		returnError := errors.New(errorMsg)
-
-		return returnError
-	}
-
-	return nil
 }
 
 func deleteTodo(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +138,7 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse existing string data to json
-	var todos ToDoList
+	var todos schema.ToDoList
 	if err = json.Unmarshal(existing_data, &todos); err != nil {
 		log.WithError(err).Error("Failed to parse existing data")
 		fmt.Fprintf(w, "Failed to parse existing data: %s", err.Error())
@@ -189,7 +159,7 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	todos = append(todos[:i], todos[i+1:]...)
-	if err := saveToDos(todos); err != nil {
+	if err := utils.SaveToDos(todos); err != nil {
 		fmt.Fprintf(w, "Failed to save data: %s", err.Error())
 		return
 	}
